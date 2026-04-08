@@ -137,10 +137,3 @@ source venv/bin/activate
 pip install -r requirements.txt
 python bot.py
 ```
-
----
-
-## ✦ Built by
-
-**Maissa** — CS student building real things to learn 🌹  
-[github.com/maissakaciaissa](https://github.com/maissakaciaissa)
