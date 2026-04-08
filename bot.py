@@ -1,9 +1,12 @@
+
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
 import json
 from datetime import datetime
+import random 
+import aiohttp
 
 NEWS_PATH = r"C:\side-projects\news-scraper\news.json"
 
@@ -90,6 +93,112 @@ async def news(ctx, category=None):
     
     embed.set_footer(text="use !news [category] to filter — World, Technology, Culture, Fashion, Science")
     await ctx.send(embed=embed)
+
+# ── Flip & Dice ──────────────────────────
+@bot.command()
+async def flip(ctx):
+    result = random.choice(["heads", "tails"])
+    embed = discord.Embed(
+        title="🪙 coin flip",
+        description=f"it's **{result}**!",
+        color=discord.Color.gold()
+    )
+    await ctx.send(embed=embed)
+@bot.command()
+async def dice(ctx, sides: int = 6):
+    result = random.randint(1, sides)
+    embed = discord.Embed(
+        title=f"🎲 d{sides} roll",
+        description=f"you rolled **{result}**!",
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
+
+
+# ── Weather ──────────────────────────────
+@bot.command()
+async def weather(ctx, *, city):  
+    api_key = os.getenv("WEATHER_API")
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                 print(f"Status: {response.status}, City: {city}")
+                 data_text = await response.text()
+                 print(data_text)
+                 await ctx.send(f"✦ couldn't find weather for **{city}**")
+                 return
+            data = await response.json()
+    
+    temp = data["main"]["temp"]
+    feels = data["main"]["feels_like"]
+    desc = data["weather"][0]["description"]
+    humidity = data["main"]["humidity"]
+    
+    embed = discord.Embed(
+        title=f"🌤 weather in {city.title()}",
+        color=discord.Color.teal()
+    )
+    embed.add_field(name="temperature", value=f"{temp}°C", inline=True)
+    embed.add_field(name="feels like", value=f"{feels}°C", inline=True)
+    embed.add_field(name="humidity", value=f"{humidity}%", inline=True)
+    embed.add_field(name="condition", value=desc, inline=False)
+   
+    await ctx.send(embed=embed)
+
+
+# ── Tasks ────────────────────────────────
+TASKS_PATH = r"C:\side-projects\todo-widget\tasks.json" 
+
+
+
+@bot.command()
+async def tasks(ctx):
+    try:
+        with open(TASKS_PATH, "r", encoding="utf-8") as f:
+            all_tasks = json.load(f)
+    except FileNotFoundError:
+        await ctx.send("✦ no tasks found!")
+        return
+    
+    from datetime import date
+    today = str(date.today())
+    today_tasks = [t for t in all_tasks if t["date"] == today]
+    
+    if not today_tasks:
+        await ctx.send("✦ no tasks for today!")
+        return
+    
+    embed = discord.Embed(
+        title="✦ today's tasks",
+        color=discord.Color.dark_red()
+    )
+    
+    for task in today_tasks:
+        status = "~~" if task["done"] else ""
+        embed.add_field(
+            name=f"{'✅' if task['done'] else '⬜'} {status}{task['text']}{status}",
+            value="\u200b",
+            inline=False
+        )
+    
+    done = sum(1 for t in today_tasks if t["done"])
+    embed.set_footer(text=f"{done}/{len(today_tasks)} completed")
+    await ctx.send(embed=embed)
+
+# ── Welcome ──────────────────────────────
+@bot.event
+async def on_member_join(member):
+    channel = discord.utils.get(member.guild.text_channels, name="general")
+    if channel:
+        embed = discord.Embed(
+            title=f"✦ welcome {member.name}!",
+            description=f"glad to have you here {member.mention} 🌹",
+            color=discord.Color.dark_red()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        await channel.send(embed=embed)
 
 
 bot.run(TOKEN)
